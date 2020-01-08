@@ -4,6 +4,7 @@ import java.util.UUID
 
 import com.ebiznext.comet.config.Settings
 import com.ebiznext.comet.schema.handlers.StorageHandler
+import com.ebiznext.comet.schema.model.Schema
 import com.ebiznext.comet.utils.SparkJob
 import com.google.cloud.bigquery.JobInfo.{CreateDisposition, WriteDisposition}
 import com.google.cloud.bigquery.TimePartitioning.Type
@@ -24,7 +25,8 @@ import scala.util.Try
 
 class BigQueryLoadJob(
   cliConfig: BigQueryLoadConfig,
-  storageHandler: StorageHandler
+  storageHandler: StorageHandler,
+  maybeSchema: scala.Option[Schema] = None
 ) extends SparkJob {
 
   override def name: String = s"bqload-${cliConfig.outputTable}"
@@ -192,10 +194,52 @@ class BigQueryLoadJob(
     }
   }
 
+  def runBQSparkConnector(): Try[SparkSession] = {
+
+    val conf = session.sparkContext.hadoopConfiguration
+    logger.info(s"BigQuery Config $cliConfig")
+
+    val projectId = conf.get("fs.gs.project.id")
+    val bucket = conf.get("fs.gs.system.bucket")
+
+    val inputPath = cliConfig.sourceFile
+    logger.info(s"Input path $inputPath")
+
+    logger.info(s"Temporary GCS path $bucket")
+    session.conf.set("temporaryGcsBucket", bucket)
+
+    Try {
+      val bigqueryHelper = RemoteBigQueryHelper.create
+      val bigquery = bigqueryHelper.getOptions().getService()
+      val datasetId = DatasetId.of(projectId, cliConfig.outputDataset)
+      val dataset = scala.Option(bigquery.getDataset(datasetId))
+      dataset.getOrElse {
+        val datasetInfo = DatasetInfo
+          .newBuilder(cliConfig.outputDataset)
+          .setLocation(cliConfig.getLocation())
+          .build
+        bigquery.create(datasetInfo)
+      }
+
+      lazy val sourceDF = session.read.parquet(inputPath)
+
+      val bqTable = s"${cliConfig.outputDataset}.${cliConfig.outputTable}"
+      val parquetDF = maybeSchema.fold(sourceDF) { schema =>
+        session.createDataFrame(sourceDF.rdd, schema.sparkType())
+      }
+
+      import com.google.cloud.spark.bigquery._
+      parquetDF.write.bigquery(table = bqTable)
+
+      session
+    }
+  }
+
   /**
     * Just to force any spark job to implement its entry point using within the "run" method
     *
     * @return : Spark Session used for the job
     */
-  override def run(): Try[SparkSession] = runSpark()
+  //override def run(): Try[SparkSession] = runSpark()
+  override def run(): Try[SparkSession] = runBQSparkConnector()
 }

@@ -116,6 +116,7 @@ object Versions {
   val gcs = "hadoop2-2.0.0"
   val hadoopbq = "hadoop2-1.0.0"
   val bq = "1.96.0"
+  val bqSparkConnector = "0.11.0-beta"
 }
 
 object Resolvers {

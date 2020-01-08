@@ -324,7 +324,8 @@ class IngestionWorkflow(
             location = meta.getProperties().get("location"),
             outputPartition = meta.getProperties().get("timestamp"),
             days = meta.getProperties().get("days").map(_.toInt)
-          )
+          ),
+          Some(schema)
         )
       case _ =>
       // ignore
@@ -435,8 +436,8 @@ class IngestionWorkflow(
     new IndexJob(config, Settings.storageHandler).run()
   }
 
-  def bqload(config: BigQueryLoadConfig): Try[SparkSession] = {
-    val res = new BigQueryLoadJob(config, Settings.storageHandler).run()
+  def bqload(config: BigQueryLoadConfig, maybeSchema: Option[Schema] = None): Try[SparkSession] = {
+    val res = new BigQueryLoadJob(config, Settings.storageHandler, maybeSchema).run()
     res match {
       case Success(_) => ;
       case Failure(e) => logger.info("BQLoad Failed", e)

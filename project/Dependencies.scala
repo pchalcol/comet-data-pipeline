@@ -74,6 +74,7 @@ object Dependencies {
     "com.google.cloud.bigdataoss" % "gcs-connector" % Versions.gcs exclude ("javax.jms", "jms") exclude ("com.sun.jdmk", "jmxtools") exclude ("com.sun.jmx", "jmxri"),
     "com.google.cloud.bigdataoss" % "bigquery-connector" % Versions.hadoopbq exclude ("javax.jms", "jms") exclude ("com.sun.jdmk", "jmxtools") exclude ("com.sun.jmx", "jmxri"),
     "com.google.cloud" % "google-cloud-bigquery" % Versions.bq exclude ("javax.jms", "jms") exclude ("com.sun.jdmk", "jmxtools") exclude ("com.sun.jmx", "jmxri"),
+    "com.google.cloud.spark" %% "spark-bigquery" % Versions.bqSparkConnector exclude ("javax.jms", "jms") exclude ("com.sun.jdmk", "jmxtools") exclude ("com.sun.jmx", "jmxri"),
     // A more recent version of guava is requierd for the big query connector
     "com.google.guava" % "guava" % "28.1-jre",
     // We include the files below because guava above introduce static constructors which break previous hadoop versions
