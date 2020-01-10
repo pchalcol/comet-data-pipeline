@@ -51,13 +51,26 @@ class BigQueryLoadJob(
     val inputPath = cliConfig.sourceFile
     logger.info(s"Input path $inputPath")
     logger.info(s"Json path $jsonPath")
-    BigQueryOutputConfiguration.configureWithAutoSchema(
-      conf,
-      outputTableId,
-      outputGcsPath,
-      BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
-      classOf[TextOutputFormat[_, _]]
-    )
+
+    maybeSchema.fold {
+      BigQueryOutputConfiguration.configureWithAutoSchema(
+        conf,
+        outputTableId,
+        outputGcsPath,
+        BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
+        classOf[TextOutputFormat[_, _]]
+      )
+    } { schema =>
+      BigQueryOutputConfiguration.configure(
+        conf,
+        outputTableId,
+        schema.bqType(),
+        outputGcsPath,
+        BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
+        classOf[TextOutputFormat[_, _]]
+      )
+    }
+
     conf.set(
       "mapreduce.job.outputformat.class",
       classOf[IndirectBigQueryOutputFormat[_, _]].getName
@@ -77,7 +90,7 @@ class BigQueryLoadJob(
       val timePartitioning =
         new BigQueryTimePartitioning(
           timeField
-        );
+        )
       conf.set(BigQueryConfiguration.OUTPUT_TABLE_PARTITIONING_KEY, timePartitioning.getAsJson)
     }
 
@@ -240,6 +253,6 @@ class BigQueryLoadJob(
     *
     * @return : Spark Session used for the job
     */
-  //override def run(): Try[SparkSession] = runSpark()
-  override def run(): Try[SparkSession] = runBQSparkConnector()
+  override def run(): Try[SparkSession] = runSpark()
+//  override def run(): Try[SparkSession] = runBQSparkConnector()
 }

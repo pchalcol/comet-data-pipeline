@@ -22,6 +22,8 @@ package com.ebiznext.comet.schema.model
 
 import java.util.regex.Pattern
 
+import com.google.cloud.hadoop.io.bigquery.output.{BigQueryTableFieldSchema, BigQueryTableSchema}
+import com.google.cloud.bigquery.LegacySQLTypeName._
 import org.apache.spark.sql.types._
 
 import scala.collection.mutable
@@ -86,6 +88,24 @@ case class Schema(
       StructField(attr.name, attr.sparkType(), !attr.required)
     }
     StructType(fields)
+  }
+
+  /**
+    * This Schema as a Big Query Schema
+    *
+    * @return Big Query Schema
+    */
+  def bqType(): BigQueryTableSchema = {
+
+    val fields = attributes map { attribute =>
+      val bqField = new BigQueryTableFieldSchema()
+      bqField.setName(attribute.name)
+      bqField.setMode(if (attribute.required) "REQUIRED" else "NULLABLE")
+      bqField.setType(attribute.sparkType().typeName)
+    }
+
+    import scala.collection.JavaConverters._
+    new BigQueryTableSchema().setFields(fields.asJava)
   }
 
   /**
