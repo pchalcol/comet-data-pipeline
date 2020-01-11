@@ -97,11 +97,31 @@ case class Schema(
     */
   def bqType(): BigQueryTableSchema = {
 
+    def convert(sparkType: DataType): String = {
+
+      val BQ_NUMERIC_PRECISION = 38
+      val BQ_NUMERIC_SCALE = 9
+      lazy val NUMERIC_SPARK_TYPE =
+        DataTypes.createDecimalType(BQ_NUMERIC_PRECISION, BQ_NUMERIC_SCALE)
+
+      sparkType match {
+        case BooleanType                                     => "BOOLEAN"
+        case LongType | IntegerType                          => "INTEGER"
+        case DoubleType | FloatType                          => "FLOAT"
+        case StringType                                      => "STRING"
+        case BinaryType                                      => "BYTES"
+        case DateType                                        => "DATE"
+        case TimestampType                                   => "TIMESTAMP"
+        case DecimalType.SYSTEM_DEFAULT | NUMERIC_SPARK_TYPE => "NUMERIC" // TODO
+        case _                                               => throw new IllegalArgumentException("Unsupported type")
+      }
+    }
+
     val fields = attributes map { attribute =>
       val bqField = new BigQueryTableFieldSchema()
-      bqField.setName(attribute.name)
+      bqField.setName(attribute.rename.getOrElse(attribute.name))
       bqField.setMode(if (attribute.required) "REQUIRED" else "NULLABLE")
-      bqField.setType(attribute.sparkType().typeName)
+      bqField.setType(convert(attribute.sparkType()))
     }
 
     import scala.collection.JavaConverters._

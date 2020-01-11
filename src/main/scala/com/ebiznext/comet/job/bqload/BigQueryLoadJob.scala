@@ -221,7 +221,7 @@ class BigQueryLoadJob(
     logger.info(s"Temporary GCS path $bucket")
     session.conf.set("temporaryGcsBucket", bucket)
 
-    Try {
+    def getOrCreateDataset() = {
       val bigqueryHelper = RemoteBigQueryHelper.create
       val bigquery = bigqueryHelper.getOptions().getService()
       val datasetId = DatasetId.of(projectId, cliConfig.outputDataset)
@@ -233,6 +233,36 @@ class BigQueryLoadJob(
           .build
         bigquery.create(datasetInfo)
       }
+    }
+
+    def bqPartition() = {
+      conf.set(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY, cliConfig.writeDisposition)
+      conf.set(
+        BigQueryConfiguration.OUTPUT_TABLE_CREATE_DISPOSITION_KEY,
+        cliConfig.createDisposition
+      )
+      cliConfig.outputPartition.foreach { outputPartition =>
+        import com.google.api.services.bigquery.model.TimePartitioning
+        val timeField =
+          if (List("_PARTITIONDATE", "_PARTITIONTIME").contains(outputPartition))
+            new TimePartitioning().setType("DAY").setRequirePartitionFilter(true)
+          else
+            new TimePartitioning()
+              .setType("DAY")
+              .setRequirePartitionFilter(true)
+              .setField(outputPartition)
+        val timePartitioning =
+          new BigQueryTimePartitioning(
+            timeField
+          )
+        conf.set(BigQueryConfiguration.OUTPUT_TABLE_PARTITIONING_KEY, timePartitioning.getAsJson)
+      }
+    }
+
+    Try {
+      getOrCreateDataset()
+
+      bqPartition()
 
       lazy val sourceDF = session.read.parquet(inputPath)
 
