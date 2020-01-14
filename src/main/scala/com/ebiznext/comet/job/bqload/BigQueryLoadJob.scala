@@ -19,7 +19,7 @@ import com.google.cloud.hadoop.io.bigquery.{BigQueryConfiguration, BigQueryFileF
 import com.google.gson.JsonParser
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{SaveMode, SparkSession}
 
 import scala.util.Try
 
@@ -124,7 +124,7 @@ class BigQueryLoadJob(
         .textFile(sourceJson)
         .map(text => (null, new JsonParser().parse(text).getAsJsonObject))
         .saveAsNewAPIHadoopDataset(conf)
-      Settings.storageHandler.delete(new Path(sourceJson))
+//      Settings.storageHandler.delete(new Path(sourceJson))
       // Check the table
       val tableId = TableId.of(cliConfig.outputDataset, cliConfig.outputTable)
       val destinationTable = bigquery.getTable(tableId).getDefinition[StandardTableDefinition]
@@ -221,9 +221,10 @@ class BigQueryLoadJob(
     logger.info(s"Temporary GCS path $bucket")
     session.conf.set("temporaryGcsBucket", bucket)
 
+    val bigqueryHelper = RemoteBigQueryHelper.create
+    val bigquery = bigqueryHelper.getOptions.getService
+
     def getOrCreateDataset() = {
-      val bigqueryHelper = RemoteBigQueryHelper.create
-      val bigquery = bigqueryHelper.getOptions().getService()
       val datasetId = DatasetId.of(projectId, cliConfig.outputDataset)
       val dataset = scala.Option(bigquery.getDataset(datasetId))
       dataset.getOrElse {
@@ -234,45 +235,63 @@ class BigQueryLoadJob(
         bigquery.create(datasetInfo)
       }
     }
+    def createTable() = {
 
-    def bqPartition() = {
+      // TODO WriteDisposition, CreateDisposition
+      /*
       conf.set(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY, cliConfig.writeDisposition)
-      conf.set(
-        BigQueryConfiguration.OUTPUT_TABLE_CREATE_DISPOSITION_KEY,
-        cliConfig.createDisposition
-      )
+      conf.set(BigQueryConfiguration.OUTPUT_TABLE_CREATE_DISPOSITION_KEY, cliConfig.createDisposition)
+       */
+
+      import com.google.cloud.bigquery.StandardTableDefinition
+      import com.google.cloud.bigquery.TableInfo
+
+      val tableDefinitionBuilder = maybeSchema.fold(StandardTableDefinition.newBuilder()) {
+        schema =>
+          StandardTableDefinition.of(schema.bqSchema()).toBuilder
+      }
+
       cliConfig.outputPartition.foreach { outputPartition =>
-        import com.google.api.services.bigquery.model.TimePartitioning
+        import com.google.cloud.bigquery.TimePartitioning
         val timeField =
           if (List("_PARTITIONDATE", "_PARTITIONTIME").contains(outputPartition))
-            new TimePartitioning().setType("DAY").setRequirePartitionFilter(true)
+            TimePartitioning
+              .newBuilder(TimePartitioning.Type.DAY)
+              .setRequirePartitionFilter(true)
+              .build()
           else
-            new TimePartitioning()
-              .setType("DAY")
+            TimePartitioning
+              .newBuilder(TimePartitioning.Type.DAY)
               .setRequirePartitionFilter(true)
               .setField(outputPartition)
-        val timePartitioning =
-          new BigQueryTimePartitioning(
-            timeField
-          )
-        conf.set(BigQueryConfiguration.OUTPUT_TABLE_PARTITIONING_KEY, timePartitioning.getAsJson)
+              .build()
+        tableDefinitionBuilder.setTimePartitioning(timeField)
       }
+
+      val tableDefinition = tableDefinitionBuilder.build()
+
+      import com.google.cloud.bigquery.TableId
+      val tableId = TableId.of(cliConfig.outputDataset, cliConfig.outputTable)
+      val tableInfo = TableInfo.newBuilder(tableId, tableDefinition).build
+      bigquery.create(tableInfo)
     }
 
     Try {
       getOrCreateDataset()
-
-      bqPartition()
+      createTable()
 
       lazy val sourceDF = session.read.parquet(inputPath)
 
       val bqTable = s"${cliConfig.outputDataset}.${cliConfig.outputTable}"
       val parquetDF = maybeSchema.fold(sourceDF) { schema =>
-        session.createDataFrame(sourceDF.rdd, schema.sparkType())
+        session.createDataFrame(sourceDF.rdd, schema.sparkFunctionalSchema())
       }
 
-      import com.google.cloud.spark.bigquery._
-      parquetDF.write.bigquery(table = bqTable)
+      parquetDF.write
+        .format("bigquery")
+        .option("table", bqTable)
+        .mode(SaveMode.Append)
+        .save()
 
       session
     }
@@ -283,6 +302,7 @@ class BigQueryLoadJob(
     *
     * @return : Spark Session used for the job
     */
-  override def run(): Try[SparkSession] = runSpark()
-//  override def run(): Try[SparkSession] = runBQSparkConnector()
+  //  override def run(): Try[SparkSession] = runSpark()
+  override def run(): Try[SparkSession] = runBQSparkConnector()
+
 }
