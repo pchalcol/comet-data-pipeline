@@ -84,7 +84,7 @@ case class Schema(
     *
     * @return Spark Catalyst Schema
     */
-  def sparkType(): StructType = {
+  def sparkType(): StructType = { // TODO passer bool
     val fields = attributes.map { attr =>
       StructField(attr.name, attr.sparkType(), !attr.required)
     }
