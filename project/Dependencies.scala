@@ -50,6 +50,7 @@ object Dependencies {
     "com.fasterxml.jackson.core" % "jackson-databind" % Versions.jackson211,
     "com.fasterxml.jackson.module" %% "jackson-module-scala" % Versions.jackson211,
     "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % Versions.jackson211
+    "org.yaml" % "snakeyaml" % Versions.snakeyaml
   )
 
   val jackson212 = Seq(
