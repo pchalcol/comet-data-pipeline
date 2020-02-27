@@ -29,6 +29,7 @@ import com.ebiznext.comet.job.jdbcload.JdbcLoadConfig
 import com.ebiznext.comet.job.metrics.MetricsConfig
 import com.ebiznext.comet.schema.handlers.SchemaHandler
 import com.ebiznext.comet.utils.{CometObjectMapper, FileLock}
+import com.ebiznext.comet.schema.generator.SchemaGen
 import com.ebiznext.comet.workflow.IngestionWorkflow
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
@@ -176,8 +177,8 @@ object Main extends StrictLogging {
           case _ =>
             printUsage()
         }
-
-      case _ => printUsage()
+      case "generate-yml" if arglist.length == 2 => SchemaGen.execute(arglist(1))
+      case _                                     => printUsage()
     }
   }
 }
