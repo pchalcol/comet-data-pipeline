@@ -177,7 +177,8 @@ object Settings extends StrictLogging {
     hadoop: juMap[String, String],
     atlas: Atlas,
     privacy: Privacy,
-    fileSystem: Option[String]
+    fileSystem: Option[String],
+    encryptionTypes: collection.Map[String, Int]
   ) extends Serializable {
 
     @throws(classOf[ObjectStreamException])
