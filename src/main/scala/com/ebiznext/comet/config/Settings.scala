@@ -247,7 +247,8 @@ object Settings extends StrictLogging {
     jdbcEngines: Map[String, JdbcEngine],
     atlas: Atlas,
     privacy: Privacy,
-    fileSystem: Option[String]
+    fileSystem: Option[String],
+    encryptionTypes: collection.Map[String, Int]
   ) extends Serializable {
 
     @throws(classOf[ObjectStreamException])
