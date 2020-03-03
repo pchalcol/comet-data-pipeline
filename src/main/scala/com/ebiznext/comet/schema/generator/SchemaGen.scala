@@ -11,7 +11,7 @@ import org.apache.poi.ss.usermodel.{DataFormatter, Row, Workbook, WorkbookFactor
 import scala.collection.JavaConverters._
 import scala.util.{Success, Try}
 
-object SchemaGen extends App with LazyLogging {
+object SchemaGen extends LazyLogging {
 
   def printUsage(): Unit = {
     println("""
@@ -19,17 +19,18 @@ object SchemaGen extends App with LazyLogging {
         |""".stripMargin)
   }
 
-  def execute(path: String): Unit = {
+  def execute(path: String)(implicit settings: Settings): Unit = {
     val reader = new XlsReader(path)
 
-    val listSchemas = reader.buildSchemas().filter(_.attributes.nonEmpty)
-    val encryptedSchemas = listSchemas.flatMap(PostEncryptSchemaGen.buildPostEncryptionSchema)
+    val listSchemas = reader.buildSchemas(settings).filter(_.attributes.nonEmpty)
+    val encryptedSchemas =
+      listSchemas.flatMap(s => PostEncryptSchemaGen.buildPostEncryptionSchema(s)(settings))
     import YamlSerializer._
     reader.domain.foreach { d =>
       val domain = d.copy(schemas = listSchemas)
       logger.info(s"""Generated schemas:
            |${serialize(domain)}""".stripMargin)
-      val output_path = Settings.comet.metadata
+      val output_path = settings.comet.metadata
       serializeToFile(new File(output_path, s"${domain.name}.yml"), domain)
       if (encryptedSchemas.nonEmpty) {
         val encryptedDomain = d.copy(schemas = encryptedSchemas)
@@ -39,17 +40,6 @@ object SchemaGen extends App with LazyLogging {
         )
       }
 
-    }
-  }
-
-  if (args.isEmpty) printUsage()
-  else {
-    logger.info("Start yaml schema generation")
-
-    val inputFile = args.headOption
-    inputFile match {
-      case Some(path) => execute(path)
-      case None       => printUsage()
     }
   }
 }
@@ -126,7 +116,7 @@ class XlsReader(path: String) {
       .toList
   }
 
-  def buildSchemas(): List[Schema] = {
+  def buildSchemas(settings: Settings): List[Schema] = {
     schemas.map { schema =>
       val schemaName = schema.name
       val sheetOpt = Option(workbook.getSheet(schemaName))
@@ -147,7 +137,7 @@ class XlsReader(path: String) {
                 .forall(_.toBoolean)
               val privacy = Option(row.getCell(4, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL))
                 .map(formatter.formatCellValue)
-                .map(PrivacyLevel.fromString)
+                .map(PrivacyLevel.ForSettings(settings).fromString)
               val metricType = Option(row.getCell(5, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL))
                 .map(formatter.formatCellValue)
                 .map(MetricType.fromString)
