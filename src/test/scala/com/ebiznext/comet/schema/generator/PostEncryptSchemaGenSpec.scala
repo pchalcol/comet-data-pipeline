@@ -2,11 +2,17 @@ package com.ebiznext.comet.schema.generator
 
 import java.util.regex.Pattern
 
+import com.ebiznext.comet.config.Settings
 import com.ebiznext.comet.schema.model._
+import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.{FlatSpec, Matchers}
 
 class PostEncryptSchemaGenTest extends FlatSpec with Matchers with StrictLogging {
+
+  implicit lazy val settings: Settings = Settings(ConfigFactory.load())
+  lazy val encryptionTypes =
+    settings.comet.encryptionTypes.map(elem => (elem._1.toUpperCase, elem._2))
 
   val p1 = Position(0, 0, Some(Trim.BOTH))
   val p2 = Position(1, 5, Some(Trim.BOTH))
@@ -55,10 +61,14 @@ class PostEncryptSchemaGenTest extends FlatSpec with Matchers with StrictLogging
   }
 
   "a list of attributes with encryption types" should "have a non empty Shift Commands" in {
-    PostEncryptSchemaGen.buildShiftCommands(attributes).filter(_.isDefined) should not be empty
+    PostEncryptSchemaGen
+      .buildShiftCommands(attributes, encryptionTypes)
+      .filter(_.isDefined) should not be empty
   }
 
   "a list of attributes with no encryption types" should "have an empty Shift Commands" in {
-    PostEncryptSchemaGen.buildShiftCommands(List(a1, a3, a5)).filter(_.isDefined) shouldBe empty
+    PostEncryptSchemaGen
+      .buildShiftCommands(List(a1, a3, a5), encryptionTypes)
+      .filter(_.isDefined) shouldBe empty
   }
 }

@@ -248,7 +248,7 @@ object Settings extends StrictLogging {
     atlas: Atlas,
     privacy: Privacy,
     fileSystem: Option[String],
-    encryptionTypes: collection.Map[String, Int]
+    encryptionTypes: collection.immutable.Map[String, Int]
   ) extends Serializable {
 
     @throws(classOf[ObjectStreamException])

@@ -2,14 +2,12 @@ package com.ebiznext.comet.schema.generator
 
 import com.ebiznext.comet.config.Settings
 import com.ebiznext.comet.schema.model.{Attribute, Format, Position, Schema}
+import collection.immutable.Map
 
 object PostEncryptSchemaGen {
 
-  val encryptionTypes: collection.Map[String, Int] =
-    Settings.comet.encryptionTypes.map(elem => (elem._1.toUpperCase, elem._2))
-
-  val encryptedSizeOpt: String => Option[Int] = (attType: String) =>
-    encryptionTypes.get(attType.toUpperCase)
+  val encryptedSizeOpt: (String, Map[String, Int]) => Option[Int] =
+    (attType: String, encryptionTypes) => encryptionTypes.get(attType.toUpperCase)
 
   /**
     * Applies a ShiftCommand on the list of Attributes as follows :
@@ -50,18 +48,20 @@ object PostEncryptSchemaGen {
     * @param attributes
     * @return a List of ShiftCommands Options
     */
-  def buildShiftCommands(attributes: List[Attribute]): List[Option[ShiftCommand]] = attributes.map {
-    att =>
-      encryptedSizeOpt(att.`type`).map { encryptedSize =>
-        val first = att.position.map(_.first).getOrElse(0)
-        val last = att.position.map(_.last).getOrElse(0)
-        val currentSize = (last - first) + 1
-        ShiftCommand(
-          start = first,
-          delta = encryptedSize - currentSize,
-          encryptedSize = encryptedSize
-        )
-      }
+  def buildShiftCommands(
+    attributes: List[Attribute],
+    encryptionTypes: Map[String, Int]
+  ): List[Option[ShiftCommand]] = attributes.map { att =>
+    encryptedSizeOpt(att.`type`, encryptionTypes).map { encryptedSize =>
+      val first = att.position.map(_.first).getOrElse(0)
+      val last = att.position.map(_.last).getOrElse(0)
+      val currentSize = (last - first) + 1
+      ShiftCommand(
+        start = first,
+        delta = encryptedSize - currentSize,
+        encryptedSize = encryptedSize
+      )
+    }
   }
 
   /**
@@ -97,7 +97,8 @@ object PostEncryptSchemaGen {
     * @param schema
     * @return Optional Schema
     */
-  def buildPostEncryptionSchema(schema: Schema): Option[Schema] = {
+  def buildPostEncryptionSchema(schema: Schema)(implicit settings: Settings): Option[Schema] = {
+    val encryptionTypes = settings.comet.encryptionTypes.map(elem => (elem._1.toUpperCase, elem._2))
     val encryptionTypesKeys = encryptionTypes.keys.toList
     schema.metadata.flatMap(_.format).exists(Format.POSITION.equals) && schema.attributes
       .map(_.`type`)
@@ -105,7 +106,7 @@ object PostEncryptSchemaGen {
       .intersect(encryptionTypesKeys)
       .nonEmpty match {
       case true => {
-        val shiftCommands = buildShiftCommands(schema.attributes)
+        val shiftCommands = buildShiftCommands(schema.attributes, encryptionTypes)
         val newAttributes = buildEncryptedAttributes(shiftCommands, schema.attributes)
         Some(schema.copy(attributes = newAttributes))
       }
