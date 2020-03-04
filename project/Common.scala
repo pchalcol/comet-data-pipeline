@@ -119,7 +119,6 @@ object Versions {
   val hadoop = "3.2.0"
   val h2 = "1.4.200" // Test only
   val poi = "4.1.1"
-  val snakeyaml = "1.25"
 }
 
 object Resolvers {
