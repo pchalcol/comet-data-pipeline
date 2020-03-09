@@ -141,6 +141,11 @@ assemblyExcludedJars in assembly := {
   Nil
 }
 
+// poi needs a version of commons-compress newer than the one shipped with spark
+assemblyShadeRules in assembly := Seq(
+  ShadeRule.rename("org.apache.commons.compress.**" -> "shadeio.commons.compress.@1").inAll
+)
+
 // Your profile name of the sonatype account. The default is the same with the organization value
 sonatypeProfileName := "com.ebiznext"
 
