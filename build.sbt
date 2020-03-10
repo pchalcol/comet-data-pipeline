@@ -60,6 +60,10 @@ artifact in (Compile, assembly) := {
 
 addArtifact(artifact in (Compile, assembly), assembly)
 
+commands += Command.command("assemblyTrulyFatJar") { state =>
+  """set assembly / fullClasspath := (Compile / fullClasspath).value""" :: "assembly" :: state
+}
+
 publishTo in ThisBuild := {
   sys.env.get("GCS_BUCKET_ARTEFACTS") match {
     case None        => sonatypePublishToBundle.value

@@ -5,6 +5,7 @@ import java.util.regex.Pattern
 
 import com.ebiznext.comet.config.Settings
 import com.ebiznext.comet.schema.model._
+import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.poi.ss.usermodel.{DataFormatter, Row, Workbook, WorkbookFactory}
 
@@ -20,6 +21,7 @@ object SchemaGen extends LazyLogging {
   }
 
   def execute(path: String)(implicit settings: Settings): Unit = {
+
     val reader = new XlsReader(path)
 
     val listSchemas = reader.buildSchemas(settings).filter(_.attributes.nonEmpty)
@@ -194,6 +196,19 @@ class XlsReader(path: String) {
             .toList
       }
       schema.copy(attributes = attributes)
+    }
+  }
+}
+
+object Main extends App {
+  implicit val settings: Settings = Settings(ConfigFactory.load())
+
+  if (args.length == 0) SchemaGen.printUsage()
+  else {
+    val arglist = args.toList
+    arglist.head match {
+      case "generate-yml" if arglist.length == 2 => SchemaGen.execute(arglist(1))
+      case _                                     => SchemaGen.printUsage()
     }
   }
 }
