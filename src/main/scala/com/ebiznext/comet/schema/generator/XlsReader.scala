@@ -82,7 +82,14 @@ class XlsReader(path: String) {
               withHeader,
               separator,
               write = write,
-              partition = None,
+              partition = Some(
+                Partition(
+                  sampling = None,
+                  attributes = Some(
+                    List("comet_year", "comet_month", "comet_day", "comet_hour", "comet_minute")
+                  )
+                )
+              ),
               index = None,
               properties = None
             )
