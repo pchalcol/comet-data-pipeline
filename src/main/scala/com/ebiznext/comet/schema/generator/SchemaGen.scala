@@ -2,7 +2,6 @@ package com.ebiznext.comet.schema.generator
 
 import java.util.regex.Pattern
 
-import com.ebiznext.comet.config.Settings
 import com.ebiznext.comet.config.{DatasetArea, Settings}
 import com.ebiznext.comet.schema.model._
 import com.typesafe.config.ConfigFactory

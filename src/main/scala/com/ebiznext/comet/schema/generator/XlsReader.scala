@@ -70,7 +70,15 @@ class XlsReader(path: String) {
           .map(formatter.formatCellValue)
         val encodingOpt = Option(row.getCell(10, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL))
           .map(formatter.formatCellValue)
-
+        val partitionSamplingOpt =
+          Option(row.getCell(11, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL))
+            .map(formatter.formatCellValue)
+            .map(_.toDouble)
+        val partitionColumnsOpt =
+          Option(row.getCell(12, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL))
+            .map(formatter.formatCellValue)
+            .map(_.split(",") map (_.trim))
+            .map(_.toList)
         (nameOpt, patternOpt) match {
           case (Some(name), Some(pattern)) => {
             val metaData = Metadata(
@@ -84,10 +92,8 @@ class XlsReader(path: String) {
               write = write,
               partition = Some(
                 Partition(
-                  sampling = None,
-                  attributes = Some(
-                    List("comet_year", "comet_month", "comet_day", "comet_hour", "comet_minute")
-                  )
+                  sampling = partitionSamplingOpt,
+                  attributes = partitionColumnsOpt
                 )
               ),
               index = None,
