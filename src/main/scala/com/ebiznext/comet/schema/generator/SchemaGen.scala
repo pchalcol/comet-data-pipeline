@@ -42,7 +42,7 @@ object SchemaGen extends LazyLogging {
     * build post encryption Domain => for each Position schema update its Metadata as follows
     *     - Format : DSV
     *     - With Header : False
-    *     - Separator : µ  //TODO perhaps read this from reference.conf
+    *     - Separator : µ
     * @param domain
     */
   def genPostEncryptionDomain(
